@@ -3,38 +3,76 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import os
 
+import logging
+import sys
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 basedir = os.path.abspath(os.path.dirname(__file__))
+template_dir = os.path.join(basedir, 'templates')
+static_dir = os.path.join(basedir, 'static')
+
+logger.info(f"Current working directory: {os.getcwd()}")
+logger.info(f"Base directory: {basedir}")
+logger.info(f"Template directory: {template_dir}")
+logger.info(f"Static directory: {static_dir}")
+
+if os.path.exists(template_dir):
+    logger.info(f"Template directory contents: {os.listdir(template_dir)}")
+else:
+    logger.error("Template directory does NOT exist!")
+
 app = Flask(__name__, 
-            static_folder=os.path.join(basedir, 'static'), 
-            template_folder=os.path.join(basedir, 'templates'))
+            static_folder=static_dir, 
+            template_folder=template_dir)
 CORS(app)
+
+from jinja2 import TemplateNotFound
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except TemplateNotFound:
+        return f"""
+        <h1>Error: Template Not Found</h1>
+        <p>The server cannot find <code>index.html</code>.</p>
+        <p><b>Current Template Directory:</b> {template_dir}</p>
+        <p><b>Directory Contents:</b> {os.listdir(template_dir) if os.path.exists(template_dir) else 'Directory does not exist'}</p>
+        <p>Please ensure you have uploaded the <code>templates</code> folder to GitHub.</p>
+        """, 500
 
-DB_NAME = "scheduler.db"
+DB_NAME = os.path.join(basedir, "scheduler.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    # Users Table
-    c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  username TEXT UNIQUE NOT NULL, 
-                  password TEXT NOT NULL)''')
-    # Tasks Table
-    c.execute('''CREATE TABLE IF NOT EXISTS tasks
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  title TEXT NOT NULL, 
-                  description TEXT, 
-                  due_date TEXT, 
-                  priority TEXT, 
-                  status TEXT, 
-                  user_id INTEGER,
-                  FOREIGN KEY(user_id) REFERENCES users(id))''')
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        # Users Table
+        c.execute('''CREATE TABLE IF NOT EXISTS users
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                      username TEXT UNIQUE NOT NULL, 
+                      password TEXT NOT NULL)''')
+        # Tasks Table
+        c.execute('''CREATE TABLE IF NOT EXISTS tasks
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                      title TEXT NOT NULL, 
+                      description TEXT, 
+                      due_date TEXT, 
+                      priority TEXT, 
+                      status TEXT, 
+                      user_id INTEGER,
+                      FOREIGN KEY(user_id) REFERENCES users(id))''')
+        conn.commit()
+        conn.close()
+        logger.info("Database initialized successfully.")
+    except Exception as e:
+        logger.error(f"Error initializing database: {e}")
+
+# Initialize DB immediately so it works with Gunicorn
+init_db()
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
