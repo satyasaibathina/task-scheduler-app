@@ -3,7 +3,10 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import os
 
-app = Flask(__name__, static_folder='static', template_folder='templates')
+basedir = os.path.abspath(os.path.dirname(__file__))
+app = Flask(__name__, 
+            static_folder=os.path.join(basedir, 'static'), 
+            template_folder=os.path.join(basedir, 'templates'))
 CORS(app)
 
 @app.route('/')
