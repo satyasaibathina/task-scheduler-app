@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+scheduler.db
+.DS_Store
+venv/
+.idea/
+.vscode/
